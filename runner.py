@@ -384,6 +384,10 @@ def main() -> int:
     ap.add_argument("path", nargs="?", help="一份收据 JSON,或配合 --suite 的套件 JSON")
     ap.add_argument("--suite", action="store_true", help="把输入当套件跑成绩单")
     ap.add_argument("--json", action="store_true", help="机器可读输出")
+    # ★ 2026-10-06：给"只要 JSON、不管被拒"的人一个明确开关。
+    #   （★ 而它【不【是【默认】—— 默认就当闸，因为那才是这个件的用处。）
+    ap.add_argument("--不闸", action="store_true",
+                    help="不管判定是什么都返回 0（默认：REJECT/NEEDS_HUMAN 返回 1）")
     args = ap.parse_args()
 
     # ★★★★ 2026-10-06 加：**不带参数 ⇒ 跑 cases/ 下所有套件。**
@@ -453,15 +457,24 @@ def main() -> int:
         return 0 if res["passed"] == res["total"] else 1
 
     got = judge(data.get("receipt") or data)
+    # ★★★★★ 2026-10-06 深夜修的（★ 一个陌生人下载跑出来的洞）：
+    #   「收据被判为 REJECT 时，命令仍然返回 0；CI 通常会把退出码 0 当成成功，
+    #     因此目前不能只靠退出码阻止不合格收据通过。」
+    #   ★ 而原来这里写的是 `return 0` —— 它为了"JSON 输出成功"而写，
+    #     而把【"程序跑成功"】和【"收据被接受"】混成了一件事。
+    #   ★★ 而【两种输出【必须用同一个判据】—— 否则机器读的和你眼睛看的是两回事。
+    #   ★★★ 要"只要 JSON 不管退出码"的，用 `--不闸`（写在明处，而不是偷偷返回 0）。
+    _当闸 = not getattr(args, "不闸", False)
+    _码 = (0 if got["verdict"] == "ACCEPT" else 1) if _当闸 else 0
     if args.json:
         print(json.dumps(got, ensure_ascii=False, indent=2))
-        return 0
+        return _码
     print(f"判定:{got['verdict']}")
     for x in got["reasons"]:
         print(f"  理由: {x}")
     if got["missing_fields"]:
         print(f"  缺字段: {', '.join(got['missing_fields'])}")
-    return 0 if got["verdict"] == "ACCEPT" else 1
+    return _码
 
 
 if __name__ == "__main__":
