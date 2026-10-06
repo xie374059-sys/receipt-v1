@@ -1,8 +1,0 @@
-{
-  "op_id": "task_c33a",
-  "status": "completed",
-  "evidence_level": "local_observed",
-  "capability_gap": "",
-  "raw_carry": { "sent": "true" },
-  "formal_ack": true
-}

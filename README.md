@@ -1,143 +1,144 @@
-# receipt-v1
+# 交接收据判定器
 
-**一份收据说"我干完了"。这个判定器回答:这份收据可不可信。**
+> **三步跑起来。** 你不用先读这份文档 —— 先把它跑起来，看到那张成绩单，再回头看下面。
 
-零依赖、纯规则、不调模型、不发网络请求。一个文件,几十行。
+## 你要先有的
 
-```bash
-python3 receipt_v1.py examples/1-false-completion.json
+**一台装了 Python 3 的电脑。** 别的什么都不要 —— 不用 pip、不用联网、不用 key。
+
+**怎么拿到这个目录 —— 看你从哪来**：
+
+```sh
+# ★ 如果你是从 GitHub 来的：
+git clone <这个仓库的地址>
+cd 收据判定器
+
+# ★ 如果你收到的是一个压缩包（收据判定器.zip）：
+#   双击解开它，里面有个目录叫 收据判定器
 ```
 
+> ★ 如果你解出来的目录里【第一层还有一层同名目录】，进到【有 `runner.py` 的那一层】再往下。
+
+## 三步
+
+```sh
+# ① 进到那个目录（★ 里面有 runner.py 的那个）
+cd 收据判定器
+
+# ② 跑它 —— 不带参数就是【把所有套件跑一遍】
+python3 runner.py
+
+# ③ 你应该看到三张成绩单，合计全绿
 ```
-{
-  "verdict": "REJECT",
-  "reasons": ["raw_says_not_done_but_completed:task_sent_to_codex,completion_observed"],
-  "formal_ack": false
-}
+
+**★ 命令是 `python3`**（★ 不是 `python`）—— 这份文档里凡是命令行，一律 `python3`。
+（★ 而这一条是 P0 测试抓出来的：`python` 在有些机器上不存在，
+★ 会报 `bash: python: command not found`、退出码 127。**同一份文档两种写法，第一次复制哪一块决定他卡不卡。**）
+
+**★ 零安装**：只用了 Python 标准库（`argparse` / `glob` / `json` / `os` / `pathlib` / `typing`）。
+不用 pip，不用联网，不用 key。
+
+**★ 看到 `REJECT` 别慌 —— 那是它在工作。**
+判定器的价值就是**能判假**：它把"自称完成了、而收据自相矛盾"的那些挑出来。
+**一个永远判真的闸，比没有闸更坏。** 所以你第一次看到红，那不是它坏了，是它活了。
+
+**★ 卡住了就卡住了 —— 把那一步【原样】告诉我。**（★ 那不是在问你"好不好用"，
+★ 而是在找：**是哪一步让人停下来**。）
+
+## 再深入一点
+
+```sh
+# 判【你自己】的一份收据（★ 格式见 spec.md 那七个字段）
+python3 runner.py 我的收据.json
+
+# 机器可读输出（★ 接进 CI 用）
+python3 runner.py 我的收据.json --json
 ```
 
 ---
 
-## 它解决什么
+## 下面这些，是给想深入的人看的
 
-一个 agent 回话说"完成了"。收据上写着 `status: completed`。
+> **给人看的是日志;给机器判的是收据。**
+> 89% 的团队已经能"看见"agent 发生了什么,但 32% 仍然卡在"质量"上 ——
+> 因为**看得见 ≠ 判得了**。这个包是"判得了"的那一半。
 
-**但同一份收据里,原始字段写着 `task_sent_to_codex: false`。**
+## 30 秒
 
-它没送出去,却报了完成。**这不是假设,是 2026-06-28 一次真实事故的原始记录。**
-当时 `status=completed`,4 份修理指令、4 小时 retry、`codex=false` 出现 11 次。
+```sh
+# 判一份收据
+python3 runner.py my-receipt.json
 
-**签名、身份、审计日志,一个都不缺 —— 但没人检查声明和凭据是否自相矛盾。**
+# 跑通用套件(八个对抗场景)
+python3 runner.py --suite cases/generic-suite.json
 
-这个判定器只做那一件事。
+# 跑真实事故现场(2026-06-28 · Node-B 011 跨机交接)
+python3 runner.py --suite cases/incident-011.json
+```
 
-## 三分钟看懂
+输出三选一:**ACCEPT / REJECT / NEEDS_HUMAN**,外加"哪条规则触发的"。
 
-| 例子 | 判定 | 为什么 |
-|---|---|---|
-| [`1-false-completion.json`](examples/1-false-completion.json) | **REJECT** | 标了完成,凭据里写着没送出去 |
-| [`2-honest-partial.json`](examples/2-honest-partial.json) | **ACCEPT** | 如实申报"3 号库区未改造" —— **诚实是可信的** |
-| [`3-self-ack.json`](examples/3-self-ack.json) | **REJECT** | `formal_ack: true`,自己给自己盖章 |
-| [`4-not-verified.json`](examples/4-not-verified.json) | **NEEDS_HUMAN** | 标完成但证据等级是 `unverified` |
+**纯确定、零模型、零网络。** 同一个收据,谁跑都是同一个结果。
 
-## ⚠️ 先读这一条,否则会误用它
+## 里面的东西
 
-**这个判定器判的是"收据可不可信",不是"活干完了没有"。**
-
-这两个不是一回事。所以:
-
-- **如实报告没干完 → ACCEPT。** 那是一份好收据。
-- **声称干完了但凭据对不上 → REJECT。**
-- **字段缺失、判不了 → NEEDS_HUMAN。**
-
-如果你要的是"活到底干完没",这个工具**不回答那个问题**。它回答的是"我能不能信这份报告"。
-
-## 它不做什么
-
-明确划清,避免误用:
-
-- **不防伪造。** 能签名的东西本来就该签名。它不管密码学。
-- **不判内容对不对。** 它不判断结果好不好、对不对、该不该。
-- **不联网、不调模型。** 纯规则,输入输出都是 JSON。
-- **不是保险箱,是筛子。** 它拦的是"自己和自己的凭据打架"这一类。
-
-## 七个字段
-
-| 字段 | 说明 |
+| 文件 | 是什么 |
 |---|---|
-| `op_id` | 这次操作的全网唯一号 |
-| `status` | `completed` / `pending_acceptance` / 其他 |
-| `attempts` | 可选。重试列表;同一 `op_id` 复用是合法的,换号重派不是 |
-| `evidence_level` | `unverified` / `self_reported` / `local_observed` / … |
-| `capability_gap` | 有缺口就写在这里。**写在缺口里是诚实的,藏在 completed 里不是** |
-| `raw_carry` | 原样携带的原始字段 —— **判定器主要靠它发现矛盾** |
-| `formal_ack` | **恒为 false。** 谁能自己给自己发确认,那确认就不值钱 |
+| `spec.md` | 七个字段的定义 + 判定规则 + 为什么是七个(实测阶梯) |
+| `runner.py` | 判定器(纯代码,不含任何模型调用) |
+| `cases/generic-suite.json` | 通用套件：不绑定行业的对抗场景 |
+| `cases/incident-011.json` | 真实事故套件：全部取自当天真实验收证据 |
+| `cases/op-id-suite.json` | op_id/证据等级套件（★ 含 R-op-01/02/03、R-lv-01、R-evid-01 的正反例）|
 
-规范细节见 [`spec/receipt-spec.md`](spec/receipt-spec.md)。
+> ★★★★ **这里【不写每个套件有几条】—— 因为那个数字【一定会漂**。
+> ★ 实测：上表原来写着 `op-id-suite` 是 **14 条**，而第二天它已经 **18 条** 了
+> （★ 因为那天加了 R-lv-01 和 R-evid-01 的反例）。
+> ⇒ **想知道几条，跑一下就有**：`python3 runner.py` 每行右边就是 `过了/总共`。
+> ★ 而这一条是"同一件事只许有一个地方做"的应用：**条数的来源是那个 json 文件，不是这份表。**
 
-## 判定规则(9 条)
+## 它挡的是什么
 
-按顺序,先命中先返回:
+七类"假完成",每一类对应一个字段:
+
+| 字段 | 挡的假 |
+|---|---|
+| `op_id` | 同一件事被投两次,做两遍 |
+| `attempts` | 换号重派,幂等门失效（★ **它不在「缺了就拒」那张表里** ——
+  因为【缺 attempts 本身不算假】，而【重派时报了号却对不上】才算（规则 3c/7））|
+| `status` | 状态机把"收到回执"当成"完成" |
+| `evidence_level` | 未验证却标完成 |
+| `capability_gap` | 有缺口却标完成 |
+| `raw_carry` | 原值被本地化改写 |
+| `formal_ack` | 自己宣布"我完成了" |
+
+## 第一张成绩单
+
+`cases/incident-011.json` 用的是 2026-06-28 那天真实的跨机交接失败现场 ——
+**状态写着 `completed`,而同一份收据的 `raw_carry` 里 `task_sent_to_codex=false`、`completion_observed=false`,真因是 `lease_status=none` 卡了四小时。**
+
+判定器对那份收据的判决是 **REJECT**,理由一行:
 
 ```
-1  formal_ack is true                     → REJECT   自己给自己盖章
-2  副作用发生 > 1 次                      → REJECT   重传做重
-3  原值逐字对不上(需调用方给期望值)      → REJECT   被本地化改写
-4  completed 但 raw_carry 里有假值        → REJECT   ★ 011 那种
-5  attempts 里出现新的 op_id              → REJECT   换号重派
-6  capability_gap 非空 但 status=completed→ REJECT   有缺口却标完成
-7  completed 但 evidence_level=unverified → NEEDS_HUMAN
-8  缺字段                                 → NEEDS_HUMAN
-9  completed 且证据齐全且无缺口            → ACCEPT
-   9b pending_acceptance + 有缺口          → ACCEPT   诚实的部分交付
+raw_says_not_done_but_completed:task_sent_to_codex,codex_exact_reply_observed,completion_observed,lease_status
 ```
 
-## 自己跑
+**8/8 全对。** 而这份判据是死的:换谁来跑,都是这一行。
 
-```bash
-# 单份
-python3 receipt_v1.py examples/1-false-completion.json
+## 怎么用它
 
-# 自测(5 个用例)
-python3 test_receipt_v1.py
+1. **接进 CI**:每个 agent 的收据在合并/放行前跑一次,不合法的直接卡住
+2. **接进验收**:甲方拿它判乙方交来的收据,不用开会
+3. **接进审计**:事后拿它复判历史收据,机械地找出"当时本该被拒"的那些
 
-# 行为边界:哪些它抓得到,哪些抓不到
-python3 three_cases.py
-```
+## 边界(不做的事)
 
-`three_cases.py` 是三种**签名完好**的收据 —— 签名能验的都验过了 ——
-但里面有一份声明和凭据自相矛盾。它演示了本判定器和"只验签名"那一层的分工在哪。
+- ❌ 不定义身份 / 凭证 / 传输 —— 交给 MCP / A2A / GB-Z 185
+- ❌ 不解释"为什么这么决定" —— 收据不产生理由,只记录事实
+- ❌ 不产生正式 ACK —— 永远
+- ❌ 不替代可观测性 —— 那个给人看,这个给机器判,而且它**拦人**
 
 ---
 
-## 和其他东西的关系
-
-这个概念不新,外面有至少 7 份 IETF 草案在做相关的事
-(execution outcome attestation、signed action receipts、SCITT profile 等)。
-
-**它们的路线是:签名 + 透明度日志 + TEE 硬件,让"结果声明"不可篡改。**
-
-**本判定器的路线不一样:不签名,只检查一份报告和它自己携带的凭据是否自洽。**
-
-两条路不冲突,管的是不同的事:
-
-| | 签名那一层 | 本判定器 |
-|---|---|---|
-| 保证 | 这话**确实是**他说的,没被改 | 他说的这话**自己站不住** |
-| 前提 | 公钥基础设施、日志服务、硬件 | **一份 JSON,什么都不用装** |
-| 适合 | 跨组织、要不可否认 | 本地、当场、要先有个筛子 |
-
-**签名完好的报告,照样可能自相矛盾。** 011 那次就是。
-
----
-
-## 状态
-
-`receipt-v1`,实验性质。判定规则是确定的、可复跑的;它**没有被任何机构采纳,也没有生产验证**。
-
-欢迎挑刺 —— 尤其是:**你能构造出一份收据,让这个判定器给出错误判定吗?**
-那是最有价值的反馈。
-
-## 许可
-
-MIT
+*设计依据:20 个可复跑实验 + 19 份轨迹 —— ★★ **那些【不在这个包里】**
+（★ 它们在一个还没公开的仓库里；**你在这个包里找不到 `experiments/` 那个目录，那不是丢东西**）。*
+*字段集的必要性来自实测阶梯:25% → 38% → 50% → 62% → 75% → 88% → 100%。*

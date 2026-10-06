@@ -1,0 +1,172 @@
+{
+  "name": "真实事故现场:Node-B 011 跨机交接(2026-06-28)",
+  "note": "以下每条都取自当天真实验收证据(docs/05-验收证据/nodeb-011-*.md)。字段值逐字保留原样。",
+  "cases": [
+    {
+      "id": "R1",
+      "desc": "收据齐全:真送到、真回执、无缺口",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-nodeb-011",
+            "status": "completed",
+            "reason": ""
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "task_sent_to_codex": "true",
+          "completion_observed": "true",
+          "lease_status": "active"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "R2",
+      "desc": "事故原样:状态=completed,原值里却全写着 false -> 自相矛盾",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-nodeb-011",
+            "status": "completed",
+            "reason": "marker_completed_but_new_turn_still_open"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "watcher 已能收件、回传,但尚未接入 B 侧模型推理输出",
+        "raw_carry": {
+          "task_sent_to_codex": "false",
+          "codex_exact_reply_observed": "false",
+          "completion_observed": "false",
+          "lease_status": "none",
+          "status": "completed"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "R3",
+      "desc": "自证:收据里 formal_ack=true",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": true
+      }
+    },
+    {
+      "id": "R4",
+      "desc": "原值被本地化改写(日期格式变了,对不上)",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-nodeb-011",
+            "status": "completed",
+            "reason": ""
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "settled_at": "28 June 2026"
+        },
+        "expected_raw_carry": {
+          "settled_at": "2026-06-28"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "R5",
+      "desc": "重传做重:同一 op_id 副作用发生两次",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-nodeb-011",
+            "status": "completed",
+            "reason": ""
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": false,
+        "side_effects": 2
+      }
+    },
+    {
+      "id": "R6",
+      "desc": "换号重派:第二封带了新 op_id(幂等门失效)",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "in_progress",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-nodeb-011",
+            "status": "failed",
+            "reason": "lease_not_active"
+          },
+          {
+            "attempt": 2,
+            "op_id": "op-nodeb-012",
+            "status": "in_progress",
+            "reason": "renumbered"
+          }
+        ],
+        "evidence_level": "unverified",
+        "capability_gap": "换号重派:这不是同一件事的第二次尝试,是一件新事",
+        "raw_carry": {
+          "attempt_1_op_id": "op-nodeb-011",
+          "attempt_2_op_id": "op-nodeb-012"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "R7",
+      "desc": "有缺口却标完成(capability_gap 非空 + completed)",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-nodeb-011",
+        "status": "completed",
+        "evidence_level": "local_observed",
+        "capability_gap": "lease 未兑换,重跑未执行",
+        "raw_carry": {
+          "lease_status": "none"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "R8",
+      "desc": "缺字段:只有 status,机械判不了",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "status": "completed"
+      }
+    }
+  ]
+}

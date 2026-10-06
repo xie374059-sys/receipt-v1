@@ -1,0 +1,162 @@
+{
+  "name": "通用一致性套件 v0.1(八个对抗场景)",
+  "note": "不绑定任何行业。任何 agent / MCP server / 平台都可以把自己的收据喂进来跑。",
+  "cases": [
+    {
+      "id": "N1",
+      "desc": "齐全且真做完",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "op-generic-1",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-1",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "N2",
+      "desc": "自称完成,但缺关键凭据(签名/回执)",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-generic-2",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-2",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "signed_acceptance": "false"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "N3",
+      "desc": "自证:formal_ack=true",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-generic-3",
+        "status": "completed",
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": true
+      }
+    },
+    {
+      "id": "N4",
+      "desc": "重传做重:同一 op_id 副作用两次",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-generic-4",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-4",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": false,
+        "side_effects": 2
+      }
+    },
+    {
+      "id": "N5",
+      "desc": "重传两次但幂等门只做一次(合法)（★ 2026-10-06 补：原值原来空着，而「有证据」那句话要有东西撑着）",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "op-generic-5",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-5",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true",
+          "idempotency_key": "same-op-once"
+        },
+        "formal_ack": false,
+        "side_effects": 1
+      }
+    },
+    {
+      "id": "N6",
+      "desc": "原值被本地化改写,逐字对不上",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "op-generic-6",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-6",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "reading_at": "14 March 2026"
+        },
+        "expected_raw_carry": {
+          "reading_at": "2026-03-14"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "N7",
+      "desc": "实际有缺口却申报为空(缺口漏报)",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "op-generic-7",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "op-generic-7",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "unverified",
+        "capability_gap": "",
+        "raw_carry": {},
+        "actual_gap": true,
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "N8",
+      "desc": "缺字段:连 op_id 都没有",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "status": "completed"
+      }
+    }
+  ]
+}

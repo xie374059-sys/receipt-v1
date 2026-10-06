@@ -1,0 +1,491 @@
+{
+  "name": "op_id 一致性套件 v0.1（四条反例 + 两个正例）",
+  "note": "验的是 muse 的小M 那份《op_id 贯穿三层 · 设计 v0.1》里的三条规则（R-op-01/02/03）。★ 按那份判定器的老规矩：每条规则先有反例，再进 runner。★ 而账的信息【由调用方喂进来】—— runner 仍然是纯确定、不碰文件、不碰网络。字段：receipt.开单表 = {t_cut: 墙钟字符串, 有开单的: [op_id …]}。 ★ 而 op_id 的格式【由收据喂进来】（op_id格式 字段）—— 因为 runner 是通用的，格式属于房间。",
+  "cases": [
+    {
+      "id": "OP1",
+      "desc": "★ R-op-01 反例：收据的 op_id 在账上没有对应的开单，而它在 t_cut 之后（新数据 = 违规）",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0483",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0483",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T21:30:00+08:00",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0482"
+          ]
+        },
+        "op_id格式": "YJ-[^-]+-\\d+"
+      }
+    },
+    {
+      "id": "OP2",
+      "desc": "★ R-op-01 的老数据分支：op_id 不在开单表里，而它在 t_cut 之前（历史）= 转人工，不是拒",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-unknown-0001",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-unknown-0001",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-06-28T10:00:00+08:00",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0482"
+          ]
+        },
+        "op_id格式": "YJ-[^-]+-\\d+"
+      }
+    },
+    {
+      "id": "OP3",
+      "desc": "★ R-op-03 反例：op_id 格式不对（不带房间号，只有序号）—— 而那就是它 v0.1 里写的 YJ-<数字>",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-0483",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-0483",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T21:30:00+08:00",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-0483"
+          ]
+        },
+        "op_id格式": "YJ-[^-]+-\\d+"
+      }
+    },
+    {
+      "id": "OP4",
+      "desc": "★ 判不了的那一格：开单表【喂进来了但没有那一条】+ 时间在 t_cut 之前 ⇒ 转人工（不是硬判）",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0483",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0483",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-06-28T10:00:00+08:00",
+        "op_id格式": "YJ-[^-]+-\\d+",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0482"
+          ]
+        }
+      }
+    },
+    {
+      "id": "OP5",
+      "desc": "★ 正例：op_id 带房间号 · 而且在开单表里 ⇒ 过（其余照旧）",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0482",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0482",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T21:30:00+08:00",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0482"
+          ]
+        },
+        "op_id格式": "YJ-[^-]+-\\d+"
+      }
+    },
+    {
+      "id": "OP6",
+      "desc": "★ 优先级：那条 op_id 格式错的，就算它【在开单表里】也拒（格式是根本）",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-0482",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-0482",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T21:30:00+08:00",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-0482"
+          ]
+        },
+        "op_id格式": "YJ-[^-]+-\\d+"
+      }
+    },
+    {
+      "id": "OP7",
+      "desc": "R-op-02 反例：带了一条撤回，而被撤的那个 op_id 【没有对应的开单】⇒ 转人工，不直接拒",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0483",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0483",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T22:20:00+08:00",
+        "op_id格式": "YJ-[^-]+-\\d+",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0483"
+          ]
+        },
+        "撤回": {
+          "op_id": "YJ-别的房间-9999",
+          "谁撤的": "键哥",
+          "为什么撤": "那一单记错了"
+        }
+      }
+    },
+    {
+      "id": "OP8",
+      "desc": "R-op-02 正例：撤回的号【有对应的开单】⇒ 过（其余照旧）",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0483",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0483",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "t_wall": "2026-10-05T22:20:00+08:00",
+        "op_id格式": "YJ-[^-]+-\\d+",
+        "开单表": {
+          "t_cut": "2026-10-05T21:00:00+08:00",
+          "有开单的": [
+            "YJ-3cdc-0483",
+            "YJ-3cdc-0482"
+          ]
+        },
+        "撤回": {
+          "op_id": "YJ-3cdc-0482",
+          "谁撤的": "键哥",
+          "为什么撤": "那一单记错了"
+        }
+      }
+    },
+    {
+      "id": "LV1",
+      "desc": "R-lv-01 反例：转述一手（链长 1）而填 local_observed ⇒ 虚报，该拒",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0001",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0001",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "relay_chain": [
+          {
+            "who": "小M/muse",
+            "t": "2026-10-06 09:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LV2",
+      "desc": "R-lv-01 正例：转述一手而填 unverified ⇒ 【R-lv-01 不拦它】（★ 而那份判定器的规则 6 会把它转人工：completed + unverified）",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0002",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0002",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "unverified",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "relay_chain": [
+          {
+            "who": "小M/muse",
+            "t": "2026-10-06 09:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "LV3",
+      "desc": "R-lv-01 正例：直读（链空）而填 local_observed ⇒ 不拦",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0003",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0003",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "relay_chain": []
+      }
+    },
+    {
+      "id": "LV4",
+      "desc": "R-lv-01 边界：★ 没带链 ⇒ 【不判】（通用收据可以没有链）",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0004",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0004",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "LV5",
+      "desc": "R-lv-01 反例：★ third_party_verified 蹭不到（链再短也不行）⇒ 该拒",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0005",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0005",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "third_party_verified",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "relay_chain": []
+      }
+    },
+    {
+      "id": "LV6",
+      "desc": "R-lv-01 反例（★ 小M 点名那条）：转述一手（链长 1）+ third_party_verified ⇒ 该拒（★ 第三方核过永远不许由距离推出来）",
+      "expected": "REJECT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0006",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0006",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "third_party_verified",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false,
+        "relay_chain": [
+          {
+            "who": "小M/muse",
+            "t": "2026-10-06 09:50"
+          }
+        ]
+      }
+    },
+    {
+      "id": "EV1",
+      "desc": "R-evid-01 反例：raw_carry 空着却标 completed ⇒ 转人工（★ 不是放行）",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0011",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0011",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "EV2",
+      "desc": "R-evid-01 正例：raw_carry 里有值 ⇒ 它【不拦】（★ 不能永远判假）",
+      "expected": "ACCEPT",
+      "receipt": {
+        "op_id": "YJ-3cdc-0012",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0012",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {
+          "delivered": "true"
+        },
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "EV3",
+      "desc": "R-evid-01 边界：raw_carry 空而 status 不是 completed ⇒ 不归它管",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0013",
+        "status": "in_progress",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0013",
+            "status": "in_progress"
+          }
+        ],
+        "evidence_level": "local_observed",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": false
+      }
+    },
+    {
+      "id": "EV4",
+      "desc": "R-evid-01 边界：★ 那一条【正好就是它给的极端例子】—— 自称 third_party_verified + raw_carry 空 ⇒ 转人工（★ 不再是 ACCEPT）",
+      "expected": "NEEDS_HUMAN",
+      "receipt": {
+        "op_id": "YJ-3cdc-0014",
+        "status": "completed",
+        "attempts": [
+          {
+            "attempt": 1,
+            "op_id": "YJ-3cdc-0014",
+            "status": "completed"
+          }
+        ],
+        "evidence_level": "third_party_verified",
+        "capability_gap": "",
+        "raw_carry": {},
+        "formal_ack": false
+      }
+    }
+  ]
+}

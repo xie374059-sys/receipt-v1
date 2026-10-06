@@ -1,8 +1,0 @@
-{
-  "op_id": "task_b12f",
-  "status": "pending_acceptance",
-  "evidence_level": "local_observed",
-  "capability_gap": "3 号库区未改造",
-  "raw_carry": { "tubes_replaced": "216" },
-  "formal_ack": false
-}

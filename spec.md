@@ -1,0 +1,156 @@
+# 交接收据 (Handover Receipt) v0.1
+
+> **一句话:** 一次 A → B 的交接,接收方要**机械地**判断"收 / 拒 / 转人工",
+> 需要这七个字段 —— ★★ **而其中【六个是「缺了就判不了」】,`attempts` 是「缺了不算假」**。
+>
+> ★★★★ 这一格是 2026-10-06 一个外来 agent 测出来的（★ 它原话：
+> 「README 说七个字段缺一不可,runner 实际只强制六个 —— 我喂一份偏偏缺 `attempts`、
+> 其余齐全的,**判定是 ACCEPT,而 `missing_fields` 是空的**」）。
+> ⇒ 所以原来那句「只有带齐这七个字段才能判」【是假的】:少了 `attempts`,
+> 判定器【照样判】—— 因为**缺 `attempts` 本身不算假**（一件没重派过的活本来就只有一次尝试）,
+> 而【重派时报了号却对不上】才算,那一条由规则 3c 和规则 7 管,不靠"缺字段"管。
+> ★ 而"七个字段的定义"那件事【没变】—— 变的是【哪几个缺了就判不了】。
+> 不带收据的交接,接收方只能采信 —— 而"采信"是所有假完成的入口。
+
+这不是一份语言规范,是一张**收据的字段表** + 一个**判定器**。
+不需要双方互相信任,也不需要任何模型;码是确定的,判据是死的,谁都能复跑。
+
+---
+
+## 0. 为什么是七个
+
+这不是设计出来的,是**量出来的**。每个字段对应一类"假完成",少一个就漏一类:
+
+| 字段 | 它挡的是哪一类假 | 缺了会怎样 |
+|---|---|---|
+| `op_id` | 同一件事被投两次,做了两遍 | 重传会重复产生副作用 |
+| `status` | 状态机把"收到回执"当成"完成" | 连基本判定都没有 |
+| `attempts` | 换号重派,幂等门失效 | 看不出这已经是第几次 |
+| `evidence_level` | 未验证却标完成 | 分不清"观察到"和"自称" |
+| `capability_gap` | 有缺口却标完成 | 缺口被藏起来 |
+| `raw_carry` | 原值被本地化改写(逐字核对失败) | 对账对不上,查不出为什么 |
+| `formal_ack` | 自己宣布"我完成了" | 自证无法被识别 |
+
+**前六个是通用的;`raw_carry` 的内容是业务特定的(放你们真正要对账的原值)。**
+
+---
+
+## 1. 字段定义
+
+```jsonc
+{
+  "op_id": "op-20260628-011",        // 同一件业务操作的唯一号;重派必须复用
+  "status": "queued",                // not_started|queued|in_progress|completed|failed|cancelled
+  "attempts": [                      // 历史尝试;重派必须在这里留痕
+    {"attempt": 1, "op_id": "op-...", "status": "failed", "reason": "lease_not_active"}
+  ],                                 // 重派复用同一个 op_id;换号 = 新操作 = 直接拒
+  "evidence_level": "local_observed",// unverified|local_observed|third_party_verified
+  "capability_gap": "",              // 非空 = 这活没做完,不许判完成
+  "raw_carry": {                     // 原样携带:逐字,禁翻译/禁改格式/禁加单位
+    "lease_status": "none",
+    "task_sent_to_codex": "false",
+    "completion_observed": "false"
+  },
+  "formal_ack": false                // 本层永不自证;收到 true 一律拒
+}
+```
+
+**硬规则:**
+
+1. `formal_ack` 只能是 `false`。收到 `true` = **自证**,直接拒。
+2. `status = completed` 与 `capability_gap != ""` **不能同时成立**。
+3. `status = completed` 需要 `evidence_level >= local_observed`。
+4. 重派必须复用**原 `op_id`**;新号 = 新操作,而且必须写进 `attempts`。
+5. `raw_carry` 里的值**逐字**保留原样,不得本地化。
+
+---
+
+## 2. 判定器(确定的,不含任何模型)
+
+输入一份收据,输出三选一:
+
+| 判定 | 含义 | 后续 |
+|---|---|---|
+| **ACCEPT** | 可以继续 / 可以放行 | 正常推进 |
+| **REJECT** | 这份收据本身不合法 | 退回,不许推进 |
+| **NEEDS_HUMAN** | 信息不足以自动判 | 转人工,不许自动放行 |
+
+判定顺序(**先否定,后肯定** —— 这是它比"检查清单"强的地方):
+
+```
+R-op-03 op_id 格式不符(不带房间坐标)              -> REJECT   (判在最前:格式不对,后面每一条都无从谈起)
+1  formal_ack == true                             -> REJECT
+2  同一 op_id 的副作用发生 > 1 次                 -> REJECT   (需要 side_effects 计数)
+3  raw_carry 与期望原值逐字不符                   -> REJECT
+3b raw_carry 里有值写着"没送到/未完成"却标 completed -> REJECT (自相矛盾)
+3c attempts 里出现与首个 op_id 不同的号(换号重派)  -> REJECT
+4  capability_gap 非空 且 status=completed        -> REJECT
+5  _actual_gap 为真 且 capability_gap 为空        -> NEEDS_HUMAN
+6  status=completed 且 evidence_level=unverified  -> NEEDS_HUMAN
+7  status=completed 且 attempts 里有 failed 且未重派 -> NEEDS_HUMAN
+8  状态不合法(不在 STATUSES 里)                    -> REJECT
+R-op-01 收据的 op_id 在"开单表"里没有对应开单       -> 看时间: t_wall < t_cut 则 NEEDS_HUMAN,否则 REJECT
+R-op-02 撤回的 op_id 没有对应开单                  -> NEEDS_HUMAN   (撤回常是事后补记,不直接拒)
+R-lv-01 evidence_level 填得比转述距离允许的高       -> REJECT   (★ 只在收据带了 relay_chain 时才判)
+R-evid-01 status=completed 而 raw_carry 是空的      -> NEEDS_HUMAN (「有证据」那句话要有东西撑着)
+9  缺字段(REQUIRED 里那六个)                       -> NEEDS_HUMAN
+10 status=completed                                -> ACCEPT
+   其他状态                                        -> NEEDS_HUMAN
+```
+
+★★★ **上面这 17 条,和 `runner.py` 里的顺序【逐条对齐】—— 而"顺序"本身是判据**:
+`R-op-03` 判在最前(格式不对,别的无从谈起),`R-op-01/02`、`R-lv-01`、`R-evid-01`
+判在"执行"那几条之后、"缺字段"之前。
+
+★★★★ **而这一节是 2026-10-06 补的** —— 缘起是一个外来 agent 测得:
+「`spec.md` 落后于 runner:里面有 `开单表`/`撤回`/`relay_chain`/`op_id格式` 各 **0 次**」。
+⇒ 那正是"实现先于规范"的另一半:**实现跑前面之后,规范得追上来** ——
+否则下一个人照 spec 写收据,会漏掉这五条。
+
+**★ 三条新规则的输入,不在那七个字段里**（它们是"喂进来的账的信息"）:
+```
+"开单表": {"t_cut": "2026-10-05T21:00:00+08:00", "有开单的": ["YJ-3cdc-0482"]}
+"撤回":   {"op_id": "YJ-3cdc-0482", "谁撤的": "键哥", "为什么撤": "那一单记错了"}
+"relay_chain": [{"who": "小M/muse", "t": "2026-10-06 09:00"}]
+"op_id格式": "YJ-[^-]+-\\d+"
+```
+★ 而它们【都是可选的】—— **没喂 ⇒ 那一条不判**(★ 判不了就不判,不许硬判)。
+
+---
+
+## 3. 为什么这样就能挡住"假完成"
+
+因为**它不问你信不信**,只问三件可核对的事:
+
+1. **你是不是自己宣布的**(formal_ack)
+2. **你有没有说清楚哪儿没做到**(capability_gap)
+3. **你说的原值对不对得上**(raw_carry)
+
+三件事全过,才 ACCEPT。**任何一件不确定,就转人工 —— 而不是"应该没问题"。**
+
+---
+
+## 4. 最小必要字段集(实测)
+
+对抗性场景 8 个,逐步加字段:
+
+| 字段集 | 准确率 |
+|---|---|
+| 只有 `status` | 25% |
+| +`evidence_level` | 38% |
+| +`capability_gap` | 50% |
+| +`formal_ack` | 62% |
+| +`op_id` | 75% |
+| +`raw_carry` | 88% |
+| **+`attempts`** | **100%** |
+
+来源:`experiments/position_scout.py`(可复跑) —— ★ **而那个目录【不在这个包里】**（★ 见 README 最后一行）。
+
+---
+
+## 5. 不做的事(边界)
+
+- ❌ 不定义身份 / 凭证 / 传输 —— 交给 MCP / A2A / GB-Z 185
+- ❌ 不解释"为什么这么决定" —— 收据不产生理由,它只记录事实
+- ❌ 不产生正式 ACK —— 永远
+- ❌ 不替代日志/可观测性 —— 日志是**给人看**,收据是**给机器判**,而且它拦人
