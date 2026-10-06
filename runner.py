@@ -45,6 +45,53 @@ def status_of(r: dict[str, Any]) -> Any:
     return (r or {}).get("status")
 
 
+#: ★★★★★ 2026-10-06：**英文规则名 → 人话。**
+#:
+#:   ★ 用途：**页面上给人看**。（命令行那边照旧用英文名 —— 那是能查的精确判据。）
+#:   ★★ 而它的形状是"匹配前缀 + 补上括号里那几个值"，因为有些理由带着变量。
+#:   ★★★ 而【改这张表【改的是说法，不是判据】—— 判据在 judge() 里，一个字不碰。
+人话表: dict[str, str] = {
+    "completed_with_evidence_and_no_gap": "说的和凭据对得上 —— 通过",
+    "raw_says_not_done_but_completed": "嘴上说「干完了」，而凭据里写着没送出去",
+    "raw_carry_mismatch": "原值和它自己说的对不上",
+    "formal_ack_true": "自己给自己盖了个章 —— 那不算",
+    "formal_ack": "自己给自己盖了个章 —— 那不算",
+    "gap_but_completed": "自己承认有缺口，而状态写着完成",
+    "gap_underreported": "实际有缺口，而申报得比实际小",
+    "missing_fields": "有几格没填",
+    "not_completed": "状态不是「完成」",
+    "completed_but_unverified": "说完成了，而凭据等级不够",
+    "completed_after_failed_attempt_no_retry_record": "前面失败过，而没写重试记录",
+    "op_id_renumbered": "同一件事换了单号",
+    "evidence_level_overstated": "凭据等级报高了",
+}
+
+
+def 说人话(reasons) -> list[str]:
+    """★ 把英文规则名翻成人话。**翻不出来的原样留着**（★ 不许编）。"""
+    出 = []
+    for x in (reasons or []):
+        x = str(x)
+        头 = x.split(":", 1)[0].strip()
+        话 = 人话表.get(头)
+        if not 话:
+            # ★ 前缀匹配（有些理由是 `xxx:值` 那种）
+            for k, v in 人话表.items():
+                if 头.startswith(k):
+                    话 = v
+                    break
+        if not 话:
+            出.append("（这条还没翻译）" + x)
+            continue
+        # ★ 而【冒号后面那几个值【也带上】—— 那是"哪一格对不上"，人想知道
+        值 = x.split(":", 1)[1].strip() if ":" in x else ""
+        if 值:
+            # ★ 中文那些值（比如 formal_ack_true:自证完成,无效）原样用
+            话 = 话 + "（" + 值.replace(",", "、") + "）"
+        出.append(话)
+    return 出
+
+
 def judge(receipt: dict[str, Any]) -> dict[str, Any]:
     """返回 {verdict, reasons[], missing_fields[], checked}。规则顺序见 spec.md §2。"""
     r = receipt or {}
@@ -232,7 +279,9 @@ def judge(receipt: dict[str, Any]) -> dict[str, Any]:
 
 
 def _out(verdict: str, reasons: list[str], missing: list[str]) -> dict[str, Any]:
+    # ★ 2026-10-06：**多一格 `人话`** —— 给页面用。（英文那串一个字不动。）
     return {"verdict": verdict, "reasons": reasons, "missing_fields": missing,
+            "人话": 说人话(reasons),
             "formal_ack": False}
 
 
