@@ -50,12 +50,58 @@ def status_of(r: dict[str, Any]) -> Any:
 #:   ★ 用途：**页面上给人看**。（命令行那边照旧用英文名 —— 那是能查的精确判据。）
 #:   ★★ 而它的形状是"匹配前缀 + 补上括号里那几个值"，因为有些理由带着变量。
 #:   ★★★ 而【改这张表【改的是说法，不是判据】—— 判据在 judge() 里，一个字不碰。
+#: ★★★★★ 2026-10-06：**凭据里那些字段名 → 人话。**
+#:
+#:   ★ 起因：键哥截图说「我看不懂代码」—— 而理由是
+#:     「…（task_sent_to_codex、completion_observed、lease_status）」。
+#:   ★★ 那三个是【凭据里的格子名】。人会想知道"哪一格对不上"，而【不想看英文】。
+#:   ★★★ 而【翻不出来【的【不显示】—— 只说"有几格对不上"，**绝不原样漏出去**。
+字段话: dict[str, str] = {
+    "task_sent_to_codex": "任务交给下游了吗",
+    "completion_observed": "看到完成了吗",
+    "lease_status": "租约状态",
+    "delivered": "东西送到了吗",
+    "signed": "签收了吗",
+    "verified": "核过了吗",
+    "deployed": "上线了吗",
+    "tested": "测过了吗",
+    "raw_carry": "凭据那一格",
+    "evidence_level": "凭据等级",
+    "capability_gap": "自己报的缺口",
+    "formal_ack": "自己盖的章",
+    "status": "状态",
+    "attempts": "试了几次",
+    "op_id": "单号",
+}
+
+
+def 翻字段(名单: str) -> str:
+    """★ 把 `a,b,c` 那样的字段名翻成中文。**翻不出来的【不出现在结果里】。**"""
+    出 = []
+    没翻 = 0
+    for x in str(名单 or "").replace("，", ",").split(","):
+        x = x.strip()
+        if not x:
+            continue
+        话 = 字段话.get(x)
+        if 话:
+            出.append(话)
+        else:
+            没翻 += 1
+    if 没翻 and not 出:
+        # ★ 一个都翻不出来 ⇒ 只报个数，不报名字
+        return "有 %d 格对不上" % 没翻
+    if 没翻:
+        出.append("另有 %d 格" % 没翻)
+    return "、".join(出)
+
+
 人话表: dict[str, str] = {
-    "completed_with_evidence_and_no_gap": "说的和凭据对得上 —— 通过",
+    "completed_with_evidence_and_no_gap": "证据齐了，没毛病",
     "raw_says_not_done_but_completed": "嘴上说「干完了」，而凭据里写着没送出去",
     "raw_carry_mismatch": "原值和它自己说的对不上",
-    "formal_ack_true": "自己给自己盖了个章 —— 那不算",
-    "formal_ack": "自己给自己盖了个章 —— 那不算",
+    "formal_ack_true": "自己证明自己，没用",
+    "formal_ack": "自己证明自己，没用",
     "gap_but_completed": "自己承认有缺口，而状态写着完成",
     "gap_underreported": "实际有缺口，而申报得比实际小",
     "missing_fields": "有几格没填",
@@ -83,11 +129,17 @@ def 说人话(reasons) -> list[str]:
         if not 话:
             出.append("（这条还没翻译）" + x)
             continue
-        # ★ 而【冒号后面那几个值【也带上】—— 那是"哪一格对不上"，人想知道
+        # ★ 而【冒号后面那几个值【也带上】—— 那是"哪一格对不上"，人想知道。
+        #   ★★ 而它【也要翻】：可能是英文的字段名（键哥截图说"我看不懂代码"就是这里）。
+        #   ★★★ 而【中文那些值【原样用】（比如 formal_ack_true:自证完成,无效）。
         值 = x.split(":", 1)[1].strip() if ":" in x else ""
         if 值:
-            # ★ 中文那些值（比如 formal_ack_true:自证完成,无效）原样用
-            话 = 话 + "（" + 值.replace(",", "、") + "）"
+            if any("\u4e00" <= _c <= "\u9fff" for _c in 值):
+                话 = 话 + "（" + 值.replace(",", "、") + "）"
+            else:
+                _翻 = 翻字段(值)
+                if _翻:
+                    话 = 话 + "（" + _翻 + "）"
         出.append(话)
     return 出
 
