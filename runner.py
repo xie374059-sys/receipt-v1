@@ -110,6 +110,10 @@ def 翻字段(名单: str) -> str:
     "completed_after_failed_attempt_no_retry_record": "前面失败过，而没写重试记录",
     "op_id_renumbered": "同一件事换了单号",
     "evidence_level_overstated": "凭据等级报高了",
+    # ★ 2026-10-07 加的（★ 从公网真跑出来发现的：新规则漏了翻译，
+    #   页面上显示「（这条还没翻译）firm_missing:脑子」）。
+    "firm_missing": "填了署名，而有几格空着 —— 说不清是谁说的",
+    "firm_fingerprint_bad": "指纹不是从公钥算出来的（那个是手写的）",
 }
 
 
@@ -318,6 +322,27 @@ def judge(receipt: dict[str, Any]) -> dict[str, Any]:
             return _out("NEEDS_HUMAN",
                         ["completed_but_no_raw_carry:标了完成,而 raw_carry 是空的 —— "
                          "「有证据」那句话要有东西撑着"], missing)
+
+    # R-firm-01 「署名」那一格 ---- 谁说的（★ 2026-10-07 加）
+    #
+    #   ★ 依据:键哥定的 —— 「署名就是元界 ID,加上 agent 是什么模型。」
+    #   ★★ 而这条守的是这个件最核心那句「谁说的 · 凭什么」的「谁」那一半。
+    #
+    #   ★★★ 三条边界（写成代码之前先想清,免得把老收据全判红）：
+    #     · **没有 `署名` ⇒ 不判它** —— 老收据照样能过。加一格不许让历史红。
+    #     · **有 `署名`,而【谁/脑子/指纹】缺了 ⇒ REJECT** —— 署名不全 = 说不清是谁。
+    #     · **签名真不真【不在这里判** —— 这个件零依赖,不做密码学;
+    #       验签名交给 `元界钥匙.py`。**一个件只干一件事。**
+    _署 = r.get("署名")
+    if isinstance(_署, dict) and _署:
+        _缺的 = [k for k in ("谁", "脑子", "指纹") if not str(_署.get(k) or "").strip()]
+        if _缺的:
+            return _out("REJECT",
+                        ["firm_missing:%s" % ",".join(_缺的)], missing)
+        # ★ 而指纹是从公钥【算出来】的 8 个字符 ⇒ 长度不对就是没算过
+        if len(str(_署.get("指纹") or "")) != 8:
+            return _out("REJECT",
+                        ["firm_fingerprint_bad:长度 %s（该是 8）" % len(str(_署.get("指纹") or ""))], missing)
 
     # 9 缺字段:无法机械判定
     if missing:
