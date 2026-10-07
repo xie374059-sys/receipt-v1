@@ -333,16 +333,31 @@ def judge(receipt: dict[str, Any]) -> dict[str, Any]:
     #     · **有 `署名`,而【谁/脑子/指纹】缺了 ⇒ REJECT** —— 署名不全 = 说不清是谁。
     #     · **签名真不真【不在这里判** —— 这个件零依赖,不做密码学;
     #       验签名交给 `元界钥匙.py`。**一个件只干一件事。**
+    #   ★★★★ 2026-10-07 下午改：**分成三组**（键哥拍的板）。
+    #
+    #     原来那几格挤在【署名】一格 —— 而它们其实是【三种不同层】的东西：
+    #       · 谁 + 什么时候  ⇒ 【署名】（谁说的）
+    #       · 指纹 + 签名     ⇒ 【凭据】（凭什么信）
+    #       · 脑子            ⇒ 【过程】（★ 它【不当判据】—— 写什么都行，只用来分组）
+    #       · 谁派的          ⇒ 【授权】（★ 那是调度那层的事）
+    #     ⇒ 而"把三种东西塞进一格"正是这个件要治的病，所以自己先不犯。
+    #
+    #   ★ 两种格式都收：平的老格式（谁/脑子/指纹 在署名里）+ 分组的新格式。
     _署 = r.get("署名")
     if isinstance(_署, dict) and _署:
-        _缺的 = [k for k in ("谁", "脑子", "指纹") if not str(_署.get(k) or "").strip()]
+        _凭 = r.get("凭据") if isinstance(r.get("凭据"), dict) else {}
+        # ★ 新格式指纹在【凭据】里 · 老格式它在【署名】里 —— 两种都认
+        _指纹 = str(_凭.get("指纹") or _署.get("指纹") or "").strip()
+        _缺的 = [] if str(_署.get("谁") or "").strip() else ["谁"]
+        if not _指纹:
+            _缺的.append("指纹")
         if _缺的:
             return _out("REJECT",
                         ["firm_missing:%s" % ",".join(_缺的)], missing)
         # ★ 而指纹是从公钥【算出来】的 8 个字符 ⇒ 长度不对就是没算过
-        if len(str(_署.get("指纹") or "")) != 8:
+        if len(_指纹) != 8:
             return _out("REJECT",
-                        ["firm_fingerprint_bad:长度 %s（该是 8）" % len(str(_署.get("指纹") or ""))], missing)
+                        ["firm_fingerprint_bad:长度 %s（该是 8）" % len(_指纹)], missing)
 
     # 9 缺字段:无法机械判定
     if missing:
