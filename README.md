@@ -1,5 +1,17 @@
 # 交接收据判定器
 
+**Agent 说「已完成」，一秒钟看出它是不是在瞎报。**
+
+[English](README.en.md)
+
+Agent 交活时最坑的一种情况：状态写着「完成」，同一份收据自带的凭据里却写着任务根本没送出去。我们为这个卡过四个小时，下面这张图就是那次事故的原样。
+
+![一份写着 completed 的收据，被判定器判为 REJECT](docs/reject-demo.png)
+
+这个小工具只做一件事：读一份「完成」报告，检查它和自己带的凭据有没有自相矛盾。纯代码，不调模型，不联网，一条命令跑起来。
+
+它**不判**活干得对不对，只判这份报告自己对不对得上（见下面「它判什么、不判什么」）。
+
 > **三步跑起来。** 你不用先读这份文档 —— 先把它跑起来，看到那张成绩单，再回头看下面。
 
 ## 你要先有的
@@ -9,9 +21,9 @@
 **怎么拿到这个目录 —— 看你从哪来**：
 
 ```sh
-# ★ 如果你是从 GitHub 来的：
-git clone <这个仓库的地址>
-cd 收据判定器
+# ★ 如果你是从 GitHub 来的（★ 拉下来的目录叫 receipt-v1）：
+git clone https://github.com/xie374059-sys/receipt-v1.git
+cd receipt-v1
 
 # ★ 如果你收到的是一个压缩包（收据判定器.zip）：
 #   双击解开它，里面有个目录叫 收据判定器
@@ -22,8 +34,8 @@ cd 收据判定器
 ## 三步
 
 ```sh
-# ① 进到那个目录（★ 里面有 runner.py 的那个）
-cd 收据判定器
+# ① 进到那个目录（★ 里面有 runner.py 的那个；从 GitHub 来的叫 receipt-v1，压缩包解出来的叫 收据判定器）
+cd receipt-v1
 
 # ② 跑它 —— 不带参数就是【把所有套件跑一遍】
 python3 runner.py
@@ -69,7 +81,7 @@ python3 runner.py 我的收据.json --json
 # 判一份收据
 python3 runner.py my-receipt.json
 
-# 跑通用套件(八个对抗场景)
+# 跑通用套件(不绑定行业的对抗场景)
 python3 runner.py --suite cases/generic-suite.json
 
 # 跑真实事故现场(2026-06-28 · Node-B 011 跨机交接)
